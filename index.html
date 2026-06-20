@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Practice — Choir Regent Trainer</title>
+<!-- VexFlow for sheet-music rendering (loaded from internet) -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+<style>
+  :root {
+    /* Palette of an Orthodox psalter / oktoikh: aged parchment, sepia ink,
+       rubric red, and burnished gold. */
+    --bg: #efe6d0;          /* worn parchment */
+    --panel: #f8f2e2;       /* a fresh page */
+    --accent: #9b2622;      /* rubric red (liturgical instructions) */
+    --accent2: #9a7b1e;     /* burnished gold */
+    --text: #000000;        /* black ink */
+    --muted: #000000;       /* secondary text — kept black per request */
+    --danger: #8a2b1f;      /* deep oxblood */
+    --line: #d4c6a3;        /* ruled-margin tan */
+    --field: #fbf7ec;       /* inset page for inputs */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    text-align: center;
+    padding: 22px 16px 6px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  header p { margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; font-style: italic; }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 12px 16px 60px;
+  }
+
+  /* ---- Practice card ---- */
+  #card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(58,44,28,0.12), inset 0 0 0 4px var(--panel), inset 0 0 0 5px var(--line);
+  }
+  #staff-wrap {
+    background: #fdfaf1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: inline-block;
+    padding: 6px 10px;
+    min-height: 250px;
+    min-width: 240px;
+  }
+  #status {
+    font-size: 1rem;
+    color: var(--muted);
+    margin: 14px 0 4px;
+    min-height: 1.4em;
+  }
+  #timer {
+    font-size: 3.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin: 2px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  #timer.go { color: var(--accent); }
+  #bar {
+    height: 8px;
+    width: 100%;
+    background: var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  #bar > div {
+    height: 100%;
+    width: 100%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+  }
+  #chord-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 10px;
+    min-height: 1.3em;
+  }
+
+  /* ---- Buttons ---- */
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 11px 18px;
+    cursor: pointer;
+    background: #ece0c2;
+    color: var(--text);
+    transition: filter 0.12s, transform 0.05s;
+  }
+  button:hover { filter: brightness(1.04); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: var(--accent); color: #ffffff; border-color: #7a1c19; }
+  button.good { background: var(--accent2); color: #ffffff; border-color: #7a6017; }
+
+  /* ---- Settings ---- */
+  details {
+    margin-top: 20px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 16px 14px;
+  }
+  summary {
+    cursor: pointer;
+    padding: 12px 0;
+    font-weight: 600;
+    list-style: none;
+    color: var(--accent);
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "§  "; }
+  label { display: block; margin: 12px 0 4px; font-size: 0.9rem; color: var(--muted); }
+  textarea, input[type=number] {
+    width: 100%;
+    font: inherit;
+    background: var(--field);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 8px 10px;
+  }
+  textarea { min-height: 150px; font-family: "Consolas", "Menlo", monospace; font-size: 0.9rem; resize: vertical; }
+  .inline { display: flex; align-items: center; gap: 8px; }
+  .inline input[type=number] { width: 90px; }
+  .inline input[type=checkbox] { width: 18px; height: 18px; }
+  .inline label { margin: 0; }
+  .hint { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
+  .err { color: var(--danger); font-size: 0.85rem; margin-top: 6px; white-space: pre-wrap; }
+  .save-row { margin-top: 14px; display: flex; gap: 10px; align-items: center; }
+  code { background: var(--field); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- Chord table ---- */
+  #chord-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  #chord-table th {
+    text-align: left;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 4px 4px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  #chord-table td { padding: 3px 3px; vertical-align: top; }
+  #chord-table input[type=text] {
+    width: 100%;
+    font: inherit;
+    font-size: 0.85rem;
+    background: var(--field);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 7px;
+  }
+  #chord-table input.mono { font-family: "Consolas", "Menlo", monospace; }
+  #chord-table input.bad { border-color: var(--danger); background: #f7e7e0; }
+  #chord-table .del {
+    padding: 6px 9px;
+    font-size: 0.85rem;
+    line-height: 1;
+    background: #ece0c2;
+  }
+  #addRowBtn { margin-top: 10px; font-size: 0.88rem; padding: 8px 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pitch Practice</h1>
+  <p>Read the chord → hum all four voices → check yourself against the sound</p>
+</header>
+
+<main>
+  <div id="card">
+    <div id="staff-wrap"><div id="staff"></div></div>
+    <div id="status">Press <b>Start</b> when ready</div>
+    <div id="timer">—</div>
+    <div id="bar"><div></div></div>
+    <div id="chord-name"></div>
+
+    <div class="row">
+      <button id="startBtn" class="primary">▶ Start</button>
+      <button id="pauseBtn" hidden>⏸ Pause</button>
+      <button id="skipBtn" hidden>⏭ Skip</button>
+      <button id="nextBtn" class="primary" hidden>Next chord</button>
+      <button id="replayBtn" hidden>🔊 Replay</button>
+      <button id="arpBtn" hidden>🎵 Play notes separately</button>
+    </div>
+  </div>
+
+  <details id="settings">
+    <summary>Settings &amp; chord list</summary>
+
+    <div class="inline" style="margin-top:10px;">
+      <label for="secs">Seconds to hum:</label>
+      <input type="number" id="secs" min="1" max="30" step="1" value="3">
+    </div>
+    <div class="inline" style="margin-top:12px;">
+      <input type="checkbox" id="autoNext">
+      <label for="autoNext">Auto-advance to next chord after playback</label>
+    </div>
+    <div class="inline" style="margin-top:12px;">
+      <label for="wave">Sound:</label>
+      <select id="wave" style="font:inherit;background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:7px 8px;">
+        <option value="organ">Organ (warm)</option>
+        <option value="sine">Sine (pure)</option>
+        <option value="triangle">Triangle</option>
+      </select>
+    </div>
+
+    <label>Chord list — one row per chord:</label>
+    <table id="chord-table">
+      <thead>
+        <tr>
+          <th style="width:62px;">Key</th>
+          <th style="width:20%;">Top staff</th>
+          <th style="width:20%;">Bottom staff</th>
+          <th>Name</th>
+          <th style="width:30px;"></th>
+        </tr>
+      </thead>
+      <tbody id="chord-rows"></tbody>
+    </table>
+    <button id="addRowBtn">+ Add chord</button>
+    <div class="hint">
+      <b>Top / bottom staff:</b> the notes for the treble and bass staves, highest → lowest, separated by spaces — e.g. <code>B4 G4</code>. Either staff may be left empty. A note is a letter + optional <code>#</code>/<code>b</code> + octave; middle C is <code>C4</code>, the C below it <code>C3</code>.<br>
+      <b>Key</b> (optional) like <code>G maj</code>, <code>F major</code>, <code>D min</code>, <code>Bb</code> — draws the sharps/flats in the signature. <b>Name</b> (optional) is free text.
+    </div>
+    <div id="chord-err" class="err"></div>
+
+    <div class="save-row">
+      <button id="saveBtn" class="good">Save list</button>
+      <button id="resetBtn">Reset to examples</button>
+      <span id="saveMsg" class="hint"></span>
+    </div>
+  </details>
+</main>
+
+<script>
+"use strict";
+const VF = Vex.Flow;
+
+/* ------------------------------------------------------------------ */
+/*  Note parsing & audio frequency                                     */
+/* ------------------------------------------------------------------ */
+const SEMITONES = { c:0, d:2, e:4, f:5, g:7, a:9, b:11 };
+
+// Parse "C#4" / "Bb3" -> { vexKey:"c#/4", midi:61, accidental:"#"|"b"|null }
+function parseNote(raw) {
+  const m = /^([A-Ga-g])([#b]?)(-?\d+)$/.exec(raw.trim());
+  if (!m) throw new Error('Bad note: "' + raw + '"');
+  const letter = m[1].toLowerCase();
+  const acc = m[2];                       // "", "#", or "b"
+  const octave = parseInt(m[3], 10);
+  let semi = SEMITONES[letter];
+  if (acc === "#") semi += 1;
+  else if (acc === "b") semi -= 1;
+  const midi = (octave + 1) * 12 + semi;
+  return {
+    vexKey: letter + acc + "/" + octave,
+    accidental: acc || null,
+    midi: midi,
+    freq: 440 * Math.pow(2, (midi - 69) / 12),
+    label: m[1].toUpperCase() + acc
+  };
+}
+
+function isNoteToken(t) { return /^[A-Ga-g][#b]?-?\d+$/.test(t); }
+
+// "G maj" / "F major" / "Dm" / "A minor" -> VexFlow key spec "G" / "F" / "Dm"; null if unrecognized.
+function normalizeKey(str) {
+  const m = /^([A-Ga-g])([#b]?)\s*(maj|major|min|minor|m)?\.?$/i.exec(str.trim());
+  if (!m) return null;
+  const tonic = m[1].toUpperCase() + (m[2] || "");
+  const mode = (m[3] || "").toLowerCase();
+  const isMinor = mode === "m" || mode === "min" || mode === "minor";
+  return tonic + (isMinor ? "m" : "");
+}
+
+// Parse a whitespace-separated list of notes ("B4 G4") into note objects.
+// Empty string → []. Throws on any bad token (one staff may legitimately be empty).
+function parseNotesStr(str) {
+  return (str || "").trim().split(/\s+/).filter(Boolean).map(parseNote);
+}
+
+// Build a chord object from one table row {key, top, bottom, name}.
+// Top staff → treble (upper), bottom staff → bass (lower). The split is always
+// explicit, so manualSplit is true.
+function buildChordFromRow(row) {
+  const keyStr = (row.key || "").trim();
+  let key = null;
+  if (keyStr) {
+    key = normalizeKey(keyStr);
+    if (key === null) throw new Error('bad key "' + keyStr + '"');
+  }
+  const upper = parseNotesStr(row.top);
+  const lower = parseNotesStr(row.bottom);
+  const notes = upper.concat(lower);
+  if (notes.length === 0) throw new Error("no notes");
+  return { key: key, name: (row.name || "").trim(), notes: notes, manualSplit: true, upper: upper, lower: lower };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sheet music rendering (SATB grand staff)                           */
+/* ------------------------------------------------------------------ */
+function renderChord(chord) {
+  const host = document.getElementById("staff");
+  host.innerHTML = "";
+
+  const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+  renderer.resize(270, 250);
+  const ctx = renderer.getContext();
+
+  const treble = new VF.Stave(2, 10, 240);
+  treble.addClef("treble");
+  const bass = new VF.Stave(2, 120, 240);
+  bass.addClef("bass");
+
+  if (chord.key) {
+    try {
+      treble.addKeySignature(chord.key);
+      bass.addKeySignature(chord.key);
+    } catch (e) { /* unknown key spec — render without a signature */ }
+  }
+
+  treble.setContext(ctx).draw();
+  bass.setContext(ctx).draw();
+
+  new VF.StaveConnector(treble, bass).setType(VF.StaveConnector.type.BRACE).setContext(ctx).draw();
+  new VF.StaveConnector(treble, bass).setType(VF.StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
+
+  // Split voices onto the two staves: use the manual "|" if given, else by pitch (C4 and up → treble).
+  let trebleNotes, bassNotes;
+  if (chord.manualSplit) {
+    trebleNotes = chord.upper;
+    bassNotes = chord.lower;
+  } else {
+    trebleNotes = chord.notes.filter(function (n) { return n.midi >= 60; });
+    bassNotes   = chord.notes.filter(function (n) { return n.midi < 60; });
+  }
+
+  drawStaff(ctx, treble, "treble", trebleNotes, chord.key);
+  drawStaff(ctx, bass, "bass", bassNotes, chord.key);
+}
+
+// Empty grand staff shown before practice starts (no notes, no key signature).
+function renderBlankStaff() {
+  const host = document.getElementById("staff");
+  host.innerHTML = "";
+
+  const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+  renderer.resize(270, 250);
+  const ctx = renderer.getContext();
+
+  const treble = new VF.Stave(2, 10, 240);
+  treble.addClef("treble");
+  const bass = new VF.Stave(2, 120, 240);
+  bass.addClef("bass");
+
+  treble.setContext(ctx).draw();
+  bass.setContext(ctx).draw();
+
+  new VF.StaveConnector(treble, bass).setType(VF.StaveConnector.type.BRACE).setContext(ctx).draw();
+  new VF.StaveConnector(treble, bass).setType(VF.StaveConnector.type.SINGLE_LEFT).setContext(ctx).draw();
+}
+
+// Draw a staff's notes as up to two voices (half notes) so doubled pitches
+// show as one notehead with opposite stems (divisi unison).
+function drawStaff(ctx, stave, clef, notes, key) {
+  let voices;
+  if (notes.length === 0) {
+    const rest = new VF.StaveNote({ clef: clef, keys: [clef === "treble" ? "b/4" : "d/3"], duration: "hr" });
+    voices = [makeVoice([rest])];
+  } else {
+    const lanes = splitLanes(notes);
+    const twoVoices = lanes[1].length > 0;
+    voices = [makeVoice([buildChord(clef, lanes[0], twoVoices ? VF.Stem.UP : null)])];
+    if (twoVoices) {
+      voices.push(makeVoice([buildChord(clef, lanes[1], VF.Stem.DOWN)]));
+    }
+  }
+
+  // Draw accidentals relative to the key signature: VexFlow omits any that the
+  // signature already implies (e.g. F# in D major) and adds naturals where needed.
+  VF.Accidental.applyAccidentals(voices, key || "C");
+
+  const fmt = new VF.Formatter();
+  if (voices.length > 1) fmt.joinVoices(voices);
+  const width = Math.max(40, stave.getNoteEndX() - stave.getNoteStartX() - 15);
+  fmt.format(voices, width);
+  voices.forEach(function (v) { v.draw(ctx, stave); });
+}
+
+function makeVoice(tickables) {
+  const v = new VF.Voice({ num_beats: 2, beat_value: 4 });
+  v.setStrict(false);                 // half note needn't fill the bar
+  v.addTickables(tickables);
+  return v;
+}
+
+// Distribute notes into two "lanes": the first copy of each pitch goes to lane 1,
+// any duplicate goes to lane 2. Duplicates thus end up in opposite-stem voices.
+function splitLanes(notes) {
+  const lane1 = [], lane2 = [], seen = {};
+  notes.slice().sort(function (a, b) { return b.midi - a.midi; }).forEach(function (n) {
+    if (!seen[n.vexKey]) { seen[n.vexKey] = true; lane1.push(n); }
+    else lane2.push(n);
+  });
+  return [lane1, lane2];
+}
+
+function buildChord(clef, notes, stemDir) {
+  const sorted = notes.slice().sort(function (a, b) { return a.midi - b.midi; });  // low→high
+  const note = new VF.StaveNote({
+    clef: clef,
+    keys: sorted.map(function (n) { return n.vexKey; }),
+    duration: "h"
+  });
+  if (stemDir) note.setStemDirection(stemDir);
+  return note;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Audio synth (Web Audio API)                                        */
+/* ------------------------------------------------------------------ */
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+// Nodes for the playback currently in progress, so a new playback (or moving to
+// the next chord) can cut it off instead of overlapping.
+let activeOscs = [];
+let activeMaster = null;
+
+// Fade out and stop whatever is currently sounding (a short ramp avoids clicks).
+function stopPlayback() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  if (activeMaster) {
+    try {
+      activeMaster.gain.cancelScheduledValues(t);
+      activeMaster.gain.setValueAtTime(activeMaster.gain.value, t);
+      activeMaster.gain.linearRampToValueAtTime(0, t + 0.03);
+    } catch (e) { /* node already gone */ }
+  }
+  activeOscs.forEach(function (o) { try { o.stop(t + 0.04); } catch (e) {} });
+  activeOscs = [];
+  activeMaster = null;
+}
+
+// Begin a fresh playback: cut off the previous one and make a new master gain
+// that stopPlayback() and addOsc() will track.
+function beginPlayback(ac) {
+  stopPlayback();
+  const master = ac.createGain();
+  master.gain.value = 0.9;
+  master.connect(ac.destination);
+  activeMaster = master;
+  return master;
+}
+
+function playChord(chord) {
+  const ac = getAudio();
+  const now = ac.currentTime;
+  const dur = 2.4;
+  const waveSel = document.getElementById("wave").value;
+
+  const master = beginPlayback(ac);
+
+  const voices = chord.notes;
+  // Scale per-voice level by voice count so 6-note chords don't clip.
+  const peak = Math.min(0.25, 0.9 / voices.length);
+  voices.forEach(function (v) {
+    // Each voice: gentle attack/release so the chord blooms like an organ.
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(peak, now + 0.06);
+    g.gain.setValueAtTime(peak, now + dur - 0.5);
+    g.gain.linearRampToValueAtTime(0, now + dur);
+    g.connect(master);
+
+    if (waveSel === "organ") {
+      // Additive: fundamental + octave + soft fifth for an organ-ish timbre.
+      addOsc(ac, g, "sine", v.freq, 1.0, now, dur);
+      addOsc(ac, g, "sine", v.freq * 2, 0.35, now, dur);
+      addOsc(ac, g, "triangle", v.freq * 3, 0.12, now, dur);
+    } else {
+      addOsc(ac, g, waveSel, v.freq, 1.0, now, dur);
+    }
+  });
+}
+
+// Play the chord's notes one at a time, high → low, each as a short organ tone.
+function playArpeggio(chord) {
+  const ac = getAudio();
+  const waveSel = document.getElementById("wave").value;
+
+  const master = beginPlayback(ac);
+
+  const step = 0.6;   // seconds between note onsets
+  const dur = 0.9;    // length of each note
+  // Descending: highest pitch first.
+  const voices = chord.notes.slice().sort(function (a, b) { return b.midi - a.midi; });
+  voices.forEach(function (v, i) {
+    const start = ac.currentTime + i * step;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.25, start + 0.04);
+    g.gain.setValueAtTime(0.25, start + dur - 0.3);
+    g.gain.linearRampToValueAtTime(0, start + dur);
+    g.connect(master);
+
+    if (waveSel === "organ") {
+      addOsc(ac, g, "sine", v.freq, 1.0, start, dur);
+      addOsc(ac, g, "sine", v.freq * 2, 0.35, start, dur);
+      addOsc(ac, g, "triangle", v.freq * 3, 0.12, start, dur);
+    } else {
+      addOsc(ac, g, waveSel, v.freq, 1.0, start, dur);
+    }
+  });
+}
+
+function addOsc(ac, dest, type, freq, gainVal, start, dur) {
+  const osc = ac.createOscillator();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const g = ac.createGain();
+  g.gain.value = gainVal;
+  osc.connect(g);
+  g.connect(dest);
+  osc.start(start);
+  osc.stop(start + dur + 0.05);
+  activeOscs.push(osc);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Practice game logic                                                */
+/* ------------------------------------------------------------------ */
+const DEFAULT_ROWS = [
+  { key: "G maj", top: "B4 G4",    bottom: "D4 G3",    name: "Единородный Сыне, Соловьев" },
+  { key: "G maj", top: "A4 F#4",   bottom: "D4 D3",    name: "Тропарь гл. 2" },
+  { key: "G maj", top: "G4 D4",    bottom: "B3 G3",    name: "Аллилуиа, гл. 2, Соловьев" },
+  { key: "G maj", top: "G4 E4",    bottom: "B3 E3",    name: "Аллилуиа, гл. 4, Соловьев" },
+  { key: "F maj", top: "G4 D4",    bottom: "Bb3 G3",   name: "Обих. прокимен гл. 2" },
+  { key: "F maj", top: "A4 F4",    bottom: "C4 F3",    name: "Фа-мажор: Обиход, Киев., Греч." },
+  { key: "F maj", top: "F4 F4",    bottom: "A3 F3",    name: "Приидите поклонимся, Архиерейское" },
+  { key: "F maj", top: "A4 F4 F4", bottom: "",         name: "Св. Боже, Болгарское, жен." },
+  { key: "F maj", top: "F4 C4",    bottom: "A3 F3 F2", name: "Св. Боже, Болгарское, смеш." },
+  { key: "F maj", top: "F4 C4",    bottom: "A3 F3",    name: "Ект. о оглашенных, Кедров" },
+  { key: "D maj", top: "A4 F#4",   bottom: "D4 D3",    name: "Херувимская, Благообразный Иосиф" }
+];
+
+const PREFS_KEY = "pitchPractice.prefs";
+const CHORDS_KEY = "pitchPractice.chords";
+
+let chords = [];
+let current = null;
+let lastIndex = -1;
+let bag = [];               // shuffled chord indices remaining before a reshuffle
+let countdownTimer = null;
+let countdownStart = 0;     // performance.now() reference for the active run
+let countdownTotalMs = 0;
+let pausedElapsed = 0;      // ms elapsed when paused
+let paused = false;
+
+const el = {
+  start: document.getElementById("startBtn"),
+  pause: document.getElementById("pauseBtn"),
+  skip: document.getElementById("skipBtn"),
+  next: document.getElementById("nextBtn"),
+  replay: document.getElementById("replayBtn"),
+  arp: document.getElementById("arpBtn"),
+  status: document.getElementById("status"),
+  timer: document.getElementById("timer"),
+  bar: document.querySelector("#bar > div"),
+  chordName: document.getElementById("chord-name"),
+  secs: document.getElementById("secs"),
+  autoNext: document.getElementById("autoNext"),
+  wave: document.getElementById("wave"),
+  rows: document.getElementById("chord-rows"),
+  chordErr: document.getElementById("chord-err"),
+  saveMsg: document.getElementById("saveMsg")
+};
+
+// Draw chords without replacement: shuffle all indices into a "bag" and pop
+// one at a time; when the bag empties, reshuffle. This guarantees every chord
+// is shown once before any repeats.
+function refillBag() {
+  bag = chords.map(function (_, i) { return i; });
+  for (let i = bag.length - 1; i > 0; i--) {   // Fisher–Yates shuffle
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+  }
+  // Avoid the previous bag's last chord repeating immediately as the new first.
+  if (chords.length > 1 && bag[bag.length - 1] === lastIndex) {
+    const t = bag[bag.length - 1]; bag[bag.length - 1] = bag[0]; bag[0] = t;
+  }
+}
+
+function pickRandomChord() {
+  if (bag.length === 0) refillBag();
+  return bag.pop();
+}
+
+// Show only the buttons relevant to the current phase:
+//   "idle"     → Start
+//   "humming"  → Pause/Resume + Skip
+//   "revealed" → Next chord + Replay
+function setControls(state) {
+  el.start.hidden  = state !== "idle";
+  el.pause.hidden  = state !== "humming";
+  el.skip.hidden   = state !== "humming";
+  el.next.hidden   = state !== "revealed";
+  el.replay.hidden = state !== "revealed";
+  el.arp.hidden    = state !== "revealed";
+}
+
+function showChord() {
+  clearTimer();
+  stopPlayback();
+  const idx = pickRandomChord();
+  lastIndex = idx;
+  current = chords[idx];
+
+  renderChord(current);
+  el.chordName.textContent = current.name || "";
+
+  startCountdown();
+}
+
+function startCountdown() {
+  countdownTotalMs = Math.max(1, parseInt(el.secs.value, 10) || 3) * 1000;
+  paused = false;
+  el.pause.textContent = "⏸ Pause";
+  el.timer.classList.remove("go");
+  el.status.textContent = "Hum the chord…";
+  el.bar.style.width = "100%";
+  setControls("humming");
+  runCountdown(0);
+}
+
+function runCountdown(elapsedOffset) {
+  countdownStart = performance.now() - elapsedOffset;
+  countdownTimer = setInterval(function () {
+    const left = Math.max(0, countdownTotalMs - (performance.now() - countdownStart));
+    el.bar.style.width = (left / countdownTotalMs * 100) + "%";
+    el.timer.textContent = Math.max(1, Math.ceil(left / 1000));
+    if (left <= 0) {
+      clearTimer();
+      onTimeUp();
+    }
+  }, 50);
+}
+
+function pauseCountdown() {
+  if (paused) return;
+  paused = true;
+  pausedElapsed = performance.now() - countdownStart;
+  clearTimer();
+  el.pause.textContent = "▶ Resume";
+  el.status.textContent = "Paused";
+}
+
+function resumeCountdown() {
+  if (!paused) return;
+  paused = false;
+  el.pause.textContent = "⏸ Pause";
+  el.status.textContent = "Hum the chord…";
+  runCountdown(pausedElapsed);
+}
+
+function onTimeUp() {
+  el.timer.textContent = "♪";
+  el.timer.classList.add("go");
+  el.status.textContent = "Listen — was your pitch right?";
+  el.bar.style.width = "0%";
+  playChord(current);
+
+  setControls("revealed");
+
+  if (el.autoNext.checked) {
+    setTimeout(function () { if (!el.next.hidden) showChord(); }, 2600);
+  }
+}
+
+function clearTimer() {
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+}
+
+/* ---- button wiring ---- */
+el.start.addEventListener("click", function () {
+  getAudio();                 // unlock audio on user gesture
+  showChord();
+});
+el.pause.addEventListener("click", function () {
+  if (paused) resumeCountdown(); else pauseCountdown();
+});
+el.skip.addEventListener("click", showChord);
+el.next.addEventListener("click", showChord);
+el.replay.addEventListener("click", function () { if (current) playChord(current); });
+el.arp.addEventListener("click", function () { if (current) playArpeggio(current); });
+
+/* ------------------------------------------------------------------ */
+/*  Settings persistence                                               */
+/* ------------------------------------------------------------------ */
+// ---- Chord table editor ----
+
+// Create one editable row. `data` supplies the four field values.
+function addRow(data) {
+  data = data || { key: "", top: "", bottom: "", name: "" };
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    '<td><input type="text" class="c-key mono"    placeholder="G maj"></td>' +
+    '<td><input type="text" class="c-top mono"    placeholder="B4 G4"></td>' +
+    '<td><input type="text" class="c-bottom mono" placeholder="D4 G3"></td>' +
+    '<td><input type="text" class="c-name"        placeholder="(name)"></td>' +
+    '<td><button type="button" class="del" title="Delete row">✕</button></td>';
+  tr.querySelector(".c-key").value    = data.key || "";
+  tr.querySelector(".c-top").value    = data.top || "";
+  tr.querySelector(".c-bottom").value = data.bottom || "";
+  tr.querySelector(".c-name").value   = data.name || "";
+  el.rows.appendChild(tr);
+  return tr;
+}
+
+// Replace all rows with the given data (at least one row is always shown).
+function setRows(list) {
+  el.rows.innerHTML = "";
+  if (!list || list.length === 0) { addRow(); return; }
+  list.forEach(addRow);
+}
+
+// Read the table back into an array of {key, top, bottom, name}.
+function readRows() {
+  return Array.prototype.map.call(el.rows.querySelectorAll("tr"), function (tr) {
+    return {
+      key:    tr.querySelector(".c-key").value.trim(),
+      top:    tr.querySelector(".c-top").value.trim(),
+      bottom: tr.querySelector(".c-bottom").value.trim(),
+      name:   tr.querySelector(".c-name").value.trim()
+    };
+  });
+}
+
+// Mark/clear the `.bad` outline on a single field. Returns true if valid.
+function validateField(input) {
+  const v = input.value.trim();
+  let ok = true;
+  if (input.classList.contains("c-key")) {
+    ok = v === "" || normalizeKey(v) !== null;
+  } else if (input.classList.contains("c-top") || input.classList.contains("c-bottom")) {
+    ok = v.split(/\s+/).filter(Boolean).every(isNoteToken);
+  }
+  input.classList.toggle("bad", !ok);
+  return ok;
+}
+
+// Build the chord list from the table, throwing a combined message on any error.
+// Fully blank rows are ignored so an empty trailing row is harmless.
+function buildChords() {
+  const errs = [];
+  const out = [];
+  readRows().forEach(function (row, i) {
+    if (!row.key && !row.top && !row.bottom && !row.name) return;   // skip blank rows
+    try {
+      out.push(buildChordFromRow(row));
+    } catch (e) {
+      errs.push("Row " + (i + 1) + ": " + e.message);
+    }
+  });
+  if (errs.length) throw new Error(errs.join("\n"));
+  if (out.length === 0) throw new Error("No chords defined.");
+  return out;
+}
+
+function loadChords() {
+  const saved = localStorage.getItem(CHORDS_KEY);
+  let list;
+  if (saved !== null) {
+    try {
+      const parsed = JSON.parse(saved);
+      list = Array.isArray(parsed) ? parsed : null;
+    } catch (e) { list = null; }
+    if (list === null) list = migrateOldText(saved);   // older text-format save
+  }
+  setRows(list && list.length ? list : DEFAULT_ROWS);
+  applyChords(false);
+}
+
+// Convert a pre-table save (newline format "key - notes - name", optional "|")
+// into table rows so existing users keep their list.
+function migrateOldText(text) {
+  const rows = [];
+  text.split(/\r?\n/).forEach(function (line) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return;
+    const parts = t.split(/\s+[-—]\s+/);
+    let idx = -1;
+    for (let i = 0; i < parts.length; i++) {
+      const toks = parts[i].trim().split(/\s+/).filter(Boolean);
+      if (toks.filter(isNoteToken).length >= 1 &&
+          toks.every(function (x) { return isNoteToken(x) || x === "|"; })) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    const toks = parts[idx].trim().split(/\s+/).filter(Boolean);
+    const key = parts.slice(0, idx).join(" - ").trim();
+    const name = parts.slice(idx + 1).join(" - ").trim();
+    const bar = toks.indexOf("|");
+    let top, bottom;
+    if (bar !== -1) {
+      top = toks.slice(0, bar).filter(function (x) { return x !== "|"; }).join(" ");
+      bottom = toks.slice(bar + 1).filter(function (x) { return x !== "|"; }).join(" ");
+    } else {
+      // No explicit split: middle C and above → top, below → bottom.
+      const hi = [], lo = [];
+      toks.forEach(function (x) { (parseNote(x).midi >= 60 ? hi : lo).push(x); });
+      top = hi.join(" "); bottom = lo.join(" ");
+    }
+    rows.push({ key: key, top: top, bottom: bottom, name: name });
+  });
+  return rows;
+}
+
+function applyChords(announce) {
+  try {
+    chords = buildChords();
+    bag = [];               // stale indices may not match the new list — reshuffle
+    el.chordErr.textContent = "";
+    // Show a blank staff before practice starts (don't reveal a chord yet).
+    if (!countdownTimer && !current) renderBlankStaff();
+    if (announce) {
+      el.saveMsg.textContent = "Saved ✓ (" + chords.length + " chords)";
+      setTimeout(function () { el.saveMsg.textContent = ""; }, 2500);
+    }
+    return true;
+  } catch (e) {
+    el.chordErr.textContent = "⚠ " + e.message;
+    return false;
+  }
+}
+
+// Live validation + add/delete wiring (event delegation on the table body).
+el.rows.addEventListener("input", function (e) {
+  if (e.target.tagName === "INPUT") validateField(e.target);
+});
+el.rows.addEventListener("click", function (e) {
+  if (e.target.classList.contains("del")) {
+    e.target.closest("tr").remove();
+    if (el.rows.querySelectorAll("tr").length === 0) addRow();   // never leave it empty
+  }
+});
+document.getElementById("addRowBtn").addEventListener("click", function () {
+  const tr = addRow();
+  tr.querySelector(".c-key").focus();
+});
+
+document.getElementById("saveBtn").addEventListener("click", function () {
+  if (applyChords(true)) {
+    localStorage.setItem(CHORDS_KEY, JSON.stringify(readRows().filter(function (r) {
+      return r.key || r.top || r.bottom || r.name;   // don't persist blank rows
+    })));
+  }
+});
+
+document.getElementById("resetBtn").addEventListener("click", function () {
+  setRows(DEFAULT_ROWS);
+  localStorage.removeItem(CHORDS_KEY);
+  applyChords(true);
+});
+
+/* prefs (seconds, toggles, wave) */
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+    if (p.secs) el.secs.value = p.secs;
+    if (p.wave) el.wave.value = p.wave;
+    el.autoNext.checked = !!p.autoNext;
+  } catch (e) { /* ignore */ }
+}
+function savePrefs() {
+  localStorage.setItem(PREFS_KEY, JSON.stringify({
+    secs: el.secs.value,
+    wave: el.wave.value,
+    autoNext: el.autoNext.checked
+  }));
+}
+[el.secs, el.wave, el.autoNext].forEach(function (node) {
+  node.addEventListener("change", savePrefs);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Init                                                               */
+/* ------------------------------------------------------------------ */
+loadPrefs();
+loadChords();
+
+// Spacebar = Start / Next / Pause-Resume depending on phase (hands-free at the organ).
+document.addEventListener("keydown", function (e) {
+  if (e.code === "Space" && e.target.tagName !== "TEXTAREA" && e.target.tagName !== "INPUT") {
+    e.preventDefault();
+    if (!el.next.hidden) showChord();                 // revealed → next chord
+    else if (!el.start.hidden) { getAudio(); showChord(); } // idle → start
+    else if (!el.pause.hidden) {                       // humming → pause/resume
+      if (paused) resumeCountdown(); else pauseCountdown();
+    }
+  }
+});
+</script>
+</body>
+</html>
