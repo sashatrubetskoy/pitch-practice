@@ -460,6 +460,12 @@ function getAudio() {
 // synchronously from within the gesture's event handler.
 function unlockAudio() {
   const ac = getAudio();
+  // iOS 16.4+: route through the "playback" audio session so sound ignores the
+  // hardware ring/silent switch and uses media volume. Without this, iOS shows
+  // an active-audio indicator but stays silent when the mute switch is on.
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+  } catch (e) { /* not supported on this browser */ }
   if (!audioUnlocked) {
     try {
       const buf = ac.createBuffer(1, 1, ac.sampleRate);
