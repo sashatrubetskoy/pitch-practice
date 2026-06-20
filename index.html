@@ -446,10 +446,31 @@ function buildChord(clef, notes, stemDir) {
 /*  Audio synth (Web Audio API)                                        */
 /* ------------------------------------------------------------------ */
 let audioCtx = null;
+let audioUnlocked = false;
 function getAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === "suspended") audioCtx.resume();
   return audioCtx;
+}
+
+// iOS/mobile Safari only truly unlocks audio once a real sound node has played
+// *inside* a user gesture — resume() alone isn't enough, so sounds scheduled
+// later from a timer (e.g. onTimeUp) stay silent. Play a 1-sample silent buffer
+// on the first gesture to flip the context into a usable state. Must be called
+// synchronously from within the gesture's event handler.
+function unlockAudio() {
+  const ac = getAudio();
+  if (!audioUnlocked) {
+    try {
+      const buf = ac.createBuffer(1, 1, ac.sampleRate);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(ac.destination);
+      src.start(0);
+      audioUnlocked = true;
+    } catch (e) { /* will retry on next gesture */ }
+  }
+  return ac;
 }
 
 // Nodes for the playback currently in progress, so a new playback (or moving to
@@ -714,7 +735,7 @@ function clearTimer() {
 
 /* ---- button wiring ---- */
 el.start.addEventListener("click", function () {
-  getAudio();                 // unlock audio on user gesture
+  unlockAudio();              // unlock audio on user gesture (mobile Safari)
   showChord();
 });
 el.pause.addEventListener("click", function () {
@@ -722,8 +743,8 @@ el.pause.addEventListener("click", function () {
 });
 el.skip.addEventListener("click", showChord);
 el.next.addEventListener("click", showChord);
-el.replay.addEventListener("click", function () { if (current) playChord(current); });
-el.arp.addEventListener("click", function () { if (current) playArpeggio(current); });
+el.replay.addEventListener("click", function () { unlockAudio(); if (current) playChord(current); });
+el.arp.addEventListener("click", function () { unlockAudio(); if (current) playArpeggio(current); });
 
 /* ------------------------------------------------------------------ */
 /*  Settings persistence                                               */
@@ -924,7 +945,7 @@ document.addEventListener("keydown", function (e) {
   if (e.code === "Space" && e.target.tagName !== "TEXTAREA" && e.target.tagName !== "INPUT") {
     e.preventDefault();
     if (!el.next.hidden) showChord();                 // revealed → next chord
-    else if (!el.start.hidden) { getAudio(); showChord(); } // idle → start
+    else if (!el.start.hidden) { unlockAudio(); showChord(); } // idle → start
     else if (!el.pause.hidden) {                       // humming → pause/resume
       if (paused) resumeCountdown(); else pauseCountdown();
     }
