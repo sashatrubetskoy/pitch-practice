@@ -7,183 +7,43 @@
 <!-- VexFlow for sheet-music rendering (loaded from internet) -->
 <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 <style>
-  :root {
-    /* Palette of an Orthodox psalter / oktoikh: aged parchment, sepia ink,
-       rubric red, and burnished gold. */
-    --bg: #efe6d0;          /* worn parchment */
-    --panel: #f8f2e2;       /* a fresh page */
-    --accent: #9b2622;      /* rubric red (liturgical instructions) */
-    --accent2: #9a7b1e;     /* burnished gold */
-    --text: #000000;        /* black ink */
-    --muted: #000000;       /* secondary text — kept black per request */
-    --danger: #8a2b1f;      /* deep oxblood */
-    --line: #d4c6a3;        /* ruled-margin tan */
-    --field: #fbf7ec;       /* inset page for inputs */
-  }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.5;
-  }
-  header {
-    text-align: center;
-    padding: 22px 16px 6px;
-  }
-  header h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    letter-spacing: 0.04em;
-    color: var(--accent);
-  }
-  header p { margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; font-style: italic; }
-  main {
-    max-width: 560px;
-    margin: 0 auto;
-    padding: 12px 16px 60px;
-  }
+  body { margin: 0; line-height: 1.5; }
+  header { text-align: center; padding: 22px 16px 6px; }
+  header h1 { margin: 0; letter-spacing: 0.04em; color: maroon; }
+  header p { margin: 6px 0 0; font-style: italic; }
+  main { max-width: 560px; margin: 0 auto; padding: 12px 16px 60px; }
 
   /* ---- Practice card ---- */
-  #card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 18px;
-    text-align: center;
-    box-shadow: 0 2px 10px rgba(58,44,28,0.12), inset 0 0 0 4px var(--panel), inset 0 0 0 5px var(--line);
-  }
-  #staff-wrap {
-    background: #fdfaf1;
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    display: inline-block;
-    padding: 6px 10px;
-    min-height: 250px;
-    min-width: 240px;
-  }
-  #status {
-    font-size: 1rem;
-    color: var(--muted);
-    margin: 14px 0 4px;
-    min-height: 1.4em;
-  }
-  #timer {
-    font-size: 3.4rem;
-    font-weight: 700;
-    line-height: 1.1;
-    margin: 2px 0;
-    font-variant-numeric: tabular-nums;
-  }
-  #timer.go { color: var(--accent); }
-  #bar {
-    height: 8px;
-    width: 100%;
-    background: var(--line);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 8px;
-  }
-  #bar > div {
-    height: 100%;
-    width: 100%;
-    background: var(--accent);
-    transition: width 0.1s linear;
-  }
-  #chord-name {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-top: 10px;
-    min-height: 1.3em;
-  }
-
-  /* ---- Buttons ---- */
-  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
-  button {
-    font: inherit;
-    font-weight: 600;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 11px 18px;
-    cursor: pointer;
-    background: #ece0c2;
-    color: var(--text);
-    transition: filter 0.12s, transform 0.05s;
-  }
-  button:hover { filter: brightness(1.04); }
-  button:active { transform: translateY(1px); }
-  button:disabled { opacity: 0.45; cursor: default; }
-  button.primary { background: var(--accent); color: #ffffff; border-color: #7a1c19; }
-  button.good { background: var(--accent2); color: #ffffff; border-color: #7a6017; }
+  #card { text-align: center; }
+  #staff-wrap { display: inline-block; padding: 6px 10px; min-height: 250px; min-width: 240px; }
+  #status { min-height: 1.4em; }
+  #timer { margin: 2px 0; }
+  #timer.go { color: maroon; }
+  #bar { height: 8px; background: silver; margin-top: 8px; }
+  #bar > div { height: 100%; background: maroon; }
+  #chord-name { font-weight: 600; margin-top: 10px; min-height: 1.3em; }
+  .row button { padding: 12px 20px; margin: 4px; }
 
   /* ---- Settings ---- */
-  details {
-    margin-top: 20px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 4px 16px 14px;
-  }
-  summary {
-    cursor: pointer;
-    padding: 12px 0;
-    font-weight: 600;
-    list-style: none;
-    color: var(--accent);
-  }
-  summary::-webkit-details-marker { display: none; }
-  summary::before { content: "§  "; }
-  label { display: block; margin: 12px 0 4px; font-size: 0.9rem; color: var(--muted); }
-  textarea, input[type=number] {
-    width: 100%;
-    font: inherit;
-    background: var(--field);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 8px 10px;
-  }
-  textarea { min-height: 150px; font-family: "Consolas", "Menlo", monospace; font-size: 0.9rem; resize: vertical; }
-  .inline { display: flex; align-items: center; gap: 8px; }
+  details { margin-top: 20px; }
+  summary { cursor: pointer; font-weight: 600; color: maroon; }
+  label { display: block; margin: 12px 0 4px; }
+  textarea, input[type=number] { width: 100%; padding: 8px 10px; }
+  textarea { min-height: 150px; font-family: monospace; resize: vertical; }
+  .inline { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .inline input[type=number] { width: 90px; }
   .inline input[type=checkbox] { width: 18px; height: 18px; }
   .inline label { margin: 0; }
-  .hint { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
-  .err { color: var(--danger); font-size: 0.85rem; margin-top: 6px; white-space: pre-wrap; }
-  .save-row { margin-top: 14px; display: flex; gap: 10px; align-items: center; }
-  code { background: var(--field); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+  .err { color: red; white-space: pre-wrap; }
 
   /* ---- Chord table ---- */
   #chord-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  #chord-table th {
-    text-align: left;
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: var(--muted);
-    padding: 4px 4px 6px;
-    border-bottom: 1px solid var(--line);
-  }
-  #chord-table td { padding: 3px 3px; vertical-align: top; }
-  #chord-table input[type=text] {
-    width: 100%;
-    font: inherit;
-    font-size: 0.85rem;
-    background: var(--field);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 6px 7px;
-  }
-  #chord-table input.mono { font-family: "Consolas", "Menlo", monospace; }
-  #chord-table input.bad { border-color: var(--danger); background: #f7e7e0; }
-  #chord-table .del {
-    padding: 6px 9px;
-    font-size: 0.85rem;
-    line-height: 1;
-    background: #ece0c2;
-  }
-  #addRowBtn { margin-top: 10px; font-size: 0.88rem; padding: 8px 14px; }
+  #chord-table th { text-align: left; padding: 4px; }
+  #chord-table td { padding: 3px; vertical-align: top; }
+  #chord-table input[type=text] { width: 100%; padding: 6px 7px; }
+  #chord-table input.mono { font-family: monospace; }
+  #chord-table input.bad { background: mistyrose; }
 </style>
 </head>
 <body>
@@ -196,15 +56,15 @@
   <div id="card">
     <div id="staff-wrap"><div id="staff"></div></div>
     <div id="status">Press <b>Start</b> when ready</div>
-    <div id="timer">—</div>
+    <h1 id="timer">—</h1>
     <div id="bar"><div></div></div>
     <div id="chord-name"></div>
 
     <div class="row">
-      <button id="startBtn" class="primary">▶ Start</button>
+      <button id="startBtn">▶ Start</button>
       <button id="pauseBtn" hidden>⏸ Pause</button>
       <button id="skipBtn" hidden>⏭ Skip</button>
-      <button id="nextBtn" class="primary" hidden>Next chord</button>
+      <button id="nextBtn" hidden>Next chord</button>
       <button id="replayBtn" hidden>🔊 Replay</button>
       <button id="arpBtn" hidden>🎵 Play notes separately</button>
     </div>
@@ -213,24 +73,15 @@
   <details id="settings">
     <summary>Settings &amp; chord list</summary>
 
-    <div class="inline" style="margin-top:10px;">
+    <div class="inline">
       <label for="secs">Seconds to hum:</label>
       <input type="number" id="secs" min="1" max="30" step="1" value="3">
     </div>
-    <div class="inline" style="margin-top:12px;">
+    <div class="inline">
       <input type="checkbox" id="autoNext">
       <label for="autoNext">Auto-advance to next chord after playback</label>
     </div>
-    <div class="inline" style="margin-top:12px;">
-      <label for="wave">Sound:</label>
-      <select id="wave" style="font:inherit;background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:7px 8px;">
-        <option value="organ">Organ (warm)</option>
-        <option value="sine">Sine (pure)</option>
-        <option value="triangle">Triangle</option>
-      </select>
-    </div>
-
-    <label>Chord list — one row per chord:</label>
+    <label>Chords:</label>
     <table id="chord-table">
       <thead>
         <tr>
@@ -245,13 +96,14 @@
     </table>
     <button id="addRowBtn">+ Add chord</button>
     <div class="hint">
-      <b>Top / bottom staff:</b> the notes for the treble and bass staves, highest → lowest, separated by spaces — e.g. <code>B4 G4</code>. Either staff may be left empty. A note is a letter + optional <code>#</code>/<code>b</code> + octave; middle C is <code>C4</code>, the C below it <code>C3</code>.<br>
-      <b>Key</b> (optional) like <code>G maj</code>, <code>F major</code>, <code>D min</code>, <code>Bb</code> — draws the sharps/flats in the signature. <b>Name</b> (optional) is free text.
+      <b>Key</b> (optional) — draws the sharps/flats in the signature.<br>
+      <b>Top / bottom staff:</b> the notes for the treble and bass staves, highest → lowest. Either staff can be left empty. Middle C is <code>C4</code>.<br>
+      <b>Name</b> (optional) is free text.
     </div>
     <div id="chord-err" class="err"></div>
 
     <div class="save-row">
-      <button id="saveBtn" class="good">Save list</button>
+      <button id="saveBtn">Save list</button>
       <button id="resetBtn">Reset to examples</button>
       <span id="saveMsg" class="hint"></span>
     </div>
@@ -515,7 +367,6 @@ function playChord(chord) {
   const ac = getAudio();
   const now = ac.currentTime;
   const dur = 2.4;
-  const waveSel = document.getElementById("wave").value;
 
   const master = beginPlayback(ac);
 
@@ -531,21 +382,16 @@ function playChord(chord) {
     g.gain.linearRampToValueAtTime(0, now + dur);
     g.connect(master);
 
-    if (waveSel === "organ") {
-      // Additive: fundamental + octave + soft fifth for an organ-ish timbre.
-      addOsc(ac, g, "sine", v.freq, 1.0, now, dur);
-      addOsc(ac, g, "sine", v.freq * 2, 0.35, now, dur);
-      addOsc(ac, g, "triangle", v.freq * 3, 0.12, now, dur);
-    } else {
-      addOsc(ac, g, waveSel, v.freq, 1.0, now, dur);
-    }
+    // Additive: fundamental + octave + soft fifth for an organ-ish timbre.
+    addOsc(ac, g, "sine", v.freq, 1.0, now, dur);
+    addOsc(ac, g, "sine", v.freq * 2, 0.35, now, dur);
+    addOsc(ac, g, "triangle", v.freq * 3, 0.12, now, dur);
   });
 }
 
 // Play the chord's notes one at a time, high → low, each as a short organ tone.
 function playArpeggio(chord) {
   const ac = getAudio();
-  const waveSel = document.getElementById("wave").value;
 
   const master = beginPlayback(ac);
 
@@ -562,13 +408,9 @@ function playArpeggio(chord) {
     g.gain.linearRampToValueAtTime(0, start + dur);
     g.connect(master);
 
-    if (waveSel === "organ") {
-      addOsc(ac, g, "sine", v.freq, 1.0, start, dur);
-      addOsc(ac, g, "sine", v.freq * 2, 0.35, start, dur);
-      addOsc(ac, g, "triangle", v.freq * 3, 0.12, start, dur);
-    } else {
-      addOsc(ac, g, waveSel, v.freq, 1.0, start, dur);
-    }
+    addOsc(ac, g, "sine", v.freq, 1.0, start, dur);
+    addOsc(ac, g, "sine", v.freq * 2, 0.35, start, dur);
+    addOsc(ac, g, "triangle", v.freq * 3, 0.12, start, dur);
   });
 }
 
@@ -628,7 +470,6 @@ const el = {
   chordName: document.getElementById("chord-name"),
   secs: document.getElementById("secs"),
   autoNext: document.getElementById("autoNext"),
-  wave: document.getElementById("wave"),
   rows: document.getElementById("chord-rows"),
   chordErr: document.getElementById("chord-err"),
   saveMsg: document.getElementById("saveMsg")
@@ -762,10 +603,10 @@ function addRow(data) {
   data = data || { key: "", top: "", bottom: "", name: "" };
   const tr = document.createElement("tr");
   tr.innerHTML =
-    '<td><input type="text" class="c-key mono"    placeholder="G maj"></td>' +
-    '<td><input type="text" class="c-top mono"    placeholder="B4 G4"></td>' +
-    '<td><input type="text" class="c-bottom mono" placeholder="D4 G3"></td>' +
-    '<td><input type="text" class="c-name"        placeholder="(name)"></td>' +
+    '<td><input type="text" class="c-key mono"></td>' +
+    '<td><input type="text" class="c-top mono"></td>' +
+    '<td><input type="text" class="c-bottom mono"></td>' +
+    '<td><input type="text" class="c-name"></td>' +
     '<td><button type="button" class="del" title="Delete row">✕</button></td>';
   tr.querySelector(".c-key").value    = data.key || "";
   tr.querySelector(".c-top").value    = data.top || "";
@@ -920,23 +761,21 @@ document.getElementById("resetBtn").addEventListener("click", function () {
   applyChords(true);
 });
 
-/* prefs (seconds, toggles, wave) */
+/* prefs (seconds, toggles) */
 function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
     if (p.secs) el.secs.value = p.secs;
-    if (p.wave) el.wave.value = p.wave;
     el.autoNext.checked = !!p.autoNext;
   } catch (e) { /* ignore */ }
 }
 function savePrefs() {
   localStorage.setItem(PREFS_KEY, JSON.stringify({
     secs: el.secs.value,
-    wave: el.wave.value,
     autoNext: el.autoNext.checked
   }));
 }
-[el.secs, el.wave, el.autoNext].forEach(function (node) {
+[el.secs, el.autoNext].forEach(function (node) {
   node.addEventListener("change", savePrefs);
 });
 
